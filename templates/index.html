@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Call Analysis with Gemini</title>
+    <!-- Include marked.js library from CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
         body { font-family: sans-serif; line-height: 1.6; padding: 20px; max-width: 800px; margin: auto; }
         textarea { width: 100%; min-height: 100px; margin-bottom: 10px; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
@@ -20,17 +22,19 @@
     <p>Enter your analysis request below (e.g., "What patterns lead to closed deals?"). The app will fetch transcripts and outcomes from Airtable and ask Gemini to analyze them.</p>
 
     <form id="analysis-form">
-        <textarea id="prompt-input" placeholder="Enter your analysis request here..."></textarea>
+        <textarea id="prompt-input" placeholder="Enter your analysis request here... (e.g., Compare patterns leading to closed deals)"></textarea>
         
+        <hr>
+        <h4>Filter Set A</h4>
         <div style="display: flex; gap: 15px; margin-bottom: 10px; flex-wrap: wrap;">
           <div>
-            <label for="transcript-count">Number of most recent:</label><br>
-            <input type="number" id="transcript-count" name="transcript-count" min="0" value="16" placeholder="(0=All)" title="Number of most recent transcripts to analyze (0 or blank for All)" style="width: 80px;">
+            <label for="transcript-count-a">A: Number of most recent:</label><br>
+            <input type="number" id="transcript-count-a" name="transcript-count-a" min="0" value="10" placeholder="(0=All)" title="Number of most recent transcripts for Set A (0 or blank for All)" style="width: 80px;">
             <small>(0=All)</small>
           </div>
           <div>
-            <label for="filter-outcome">Filter by Call Outcome:</label><br>
-            <select id="filter-outcome" name="filter-outcome" style="width: 160px;">
+            <label for="filter-a-outcome">A: Call Outcome:</label><br>
+            <select id="filter-a-outcome" name="filter-a-outcome" style="width: 160px;">
               <option value="">-- Any Outcome --</option>
               <option value="1 Call Close">1 Call Close</option>
               <option value="Follow Up Close">Follow Up Close</option>
@@ -42,8 +46,8 @@
             </select>
           </div>
            <div>
-            <label for="filter-rep">Filter by Sales Rep(s):</label><br>
-            <select id="filter-rep" name="filter-rep" multiple size="3" style="width: 160px; vertical-align: top;">
+            <label for="filter-a-rep">A: Sales Rep(s):</label><br>
+            <select id="filter-a-rep" name="filter-a-rep" multiple size="3" style="width: 160px; vertical-align: top;">
               <option value="Patrick">Patrick</option>
               <option value="Tracey">Tracey</option>
               <option value="Jim">Jim</option>
@@ -52,15 +56,56 @@
             </select>
           </div>
            <div>
-            <label for="filter-call-type">Filter by Call Type:</label><br>
-            <select id="filter-call-type" name="filter-call-type" style="width: 160px;">
+            <label for="filter-a-call-type">A: Call Type:</label><br>
+            <select id="filter-a-call-type" name="filter-a-call-type" style="width: 160px;">
               <option value="">-- Any Type --</option>
               <option value="Setter">Setter</option>
               <option value="Closer">Closer</option>
             </select>
           </div>
         </div>
-        <small style="display: block; margin-bottom: 10px;">Filters apply *before* selecting the most recent number. Warning: 'All' can be slow/expensive.</small>
+        
+        <hr>
+        <h4>Filter Set B (for Comparison)</h4>
+         <div style="display: flex; gap: 15px; margin-bottom: 10px; flex-wrap: wrap;">
+           <div>
+             <label for="transcript-count-b">B: Number of most recent:</label><br>
+             <input type="number" id="transcript-count-b" name="transcript-count-b" min="0" value="10" placeholder="(0=All)" title="Number of most recent transcripts for Set B (0 or blank for All)" style="width: 80px;">
+             <small>(0=All)</small>
+           </div>
+           <div>
+             <label for="filter-b-outcome">B: Call Outcome:</label><br>
+             <select id="filter-b-outcome" name="filter-b-outcome" style="width: 160px;">
+               <option value="">-- Any Outcome --</option>
+               <option value="1 Call Close">1 Call Close</option>
+               <option value="Follow Up Close">Follow Up Close</option>
+               <option value="Follow Up Set">Follow Up Set</option>
+               <option value="No Set">No Set</option>
+               <option value="Attempted Set">Attempted Set</option>
+               <option value="Set No Close">Set No Close</option>
+               <option value="Set Still Working">Set Still Working</option>
+             </select>
+           </div>
+            <div>
+             <label for="filter-b-rep">B: Sales Rep(s):</label><br>
+             <select id="filter-b-rep" name="filter-b-rep" multiple size="3" style="width: 160px; vertical-align: top;">
+               <option value="Patrick">Patrick</option>
+               <option value="Tracey">Tracey</option>
+               <option value="Jim">Jim</option>
+               <option value="Keith">Keith</option>
+               <option value="Abhishek">Abhishek</option>
+             </select>
+           </div>
+            <div>
+             <label for="filter-b-call-type">B: Call Type:</label><br>
+             <select id="filter-b-call-type" name="filter-b-call-type" style="width: 160px;">
+               <option value="">-- Any Type --</option>
+               <option value="Setter">Setter</option>
+               <option value="Closer">Closer</option>
+             </select>
+           </div>
+         </div>
+        <small style="display: block; margin-bottom: 10px;">Set B filters are optional; leave them as '-- Any --' to analyze only Set A.</small>
 
         <button type="submit">Analyze</button>
     </form>
@@ -76,28 +121,45 @@
     <script>
         const form = document.getElementById('analysis-form');
         const input = document.getElementById('prompt-input');
-        const countInput = document.getElementById('transcript-count');
-        const outcomeFilterSelect = document.getElementById('filter-outcome'); // Get outcome select
-        const repFilterSelect = document.getElementById('filter-rep');       // Get rep MULTI-select
-        const callTypeFilterSelect = document.getElementById('filter-call-type'); // Get call type select
+        // Count Inputs
+        const countInputA = document.getElementById('transcript-count-a'); 
+        const countInputB = document.getElementById('transcript-count-b'); 
+        // Set A Filters
+        const outcomeFilterSelectA = document.getElementById('filter-a-outcome'); 
+        const repFilterSelectA = document.getElementById('filter-a-rep');       
+        const callTypeFilterSelectA = document.getElementById('filter-a-call-type'); 
+        // Set B Filters
+        const outcomeFilterSelectB = document.getElementById('filter-b-outcome'); 
+        const repFilterSelectB = document.getElementById('filter-b-rep');       
+        const callTypeFilterSelectB = document.getElementById('filter-b-call-type'); 
+        
         const resultsDiv = document.getElementById('results');
         const copyButton = document.getElementById('copy-button');
 
         form.addEventListener('submit', async (event) => {
             event.preventDefault(); // Prevent default form submission
             const userPrompt = input.value.trim();
-            let transcriptCount = parseInt(countInput.value, 10);
-            const outcomeFilter = outcomeFilterSelect.value; // Read outcome select value
+            // Read Counts
+            let transcriptCountA = parseInt(countInputA.value, 10);
+            let transcriptCountB = parseInt(countInputB.value, 10);
             
-            // Get selected reps from multi-select
-            const selectedRepOptions = Array.from(repFilterSelect.selectedOptions);
-            const repFilters = selectedRepOptions.map(option => option.value);
-
-            const callTypeFilter = callTypeFilterSelect.value; // Read call type select value
+            // Read Set A Filters
+            const outcomeFilterA = outcomeFilterSelectA.value; 
+            const selectedRepOptionsA = Array.from(repFilterSelectA.selectedOptions);
+            const repFiltersA = selectedRepOptionsA.map(option => option.value);
+            const callTypeFilterA = callTypeFilterSelectA.value; 
+            // Read Set B Filters
+            const outcomeFilterB = outcomeFilterSelectB.value;
+            const selectedRepOptionsB = Array.from(repFilterSelectB.selectedOptions);
+            const repFiltersB = selectedRepOptionsB.map(option => option.value);
+            const callTypeFilterB = callTypeFilterSelectB.value; 
 
             // Treat NaN (from blank input) or negative numbers as 0 (meaning 'All' for count)
-            if (isNaN(transcriptCount) || transcriptCount < 0) {
-                transcriptCount = 0;
+            if (isNaN(transcriptCountA) || transcriptCountA < 0) {
+                transcriptCountA = 0;
+            }
+            if (isNaN(transcriptCountB) || transcriptCountB < 0) {
+                transcriptCountB = 0;
             }
 
             // Hide copy button on new submission
@@ -119,10 +181,17 @@
                     },
                     body: JSON.stringify({ 
                         prompt: userPrompt,
-                        transcript_count: transcriptCount, 
-                        filter_outcome: outcomeFilter, // Send outcome select value
-                        filter_rep: repFilters,        // Send rep select values (now an ARRAY)
-                        filter_call_type: callTypeFilter // Send call type select value
+                        // Send both counts
+                        transcript_count_a: transcriptCountA, 
+                        transcript_count_b: transcriptCountB, 
+                        // Set A Filters
+                        filter_a_outcome: outcomeFilterA,
+                        filter_a_rep: repFiltersA,         
+                        filter_a_call_type: callTypeFilterA, 
+                        // Set B Filters
+                        filter_b_outcome: outcomeFilterB, 
+                        filter_b_rep: repFiltersB,        
+                        filter_b_call_type: callTypeFilterB 
                     }),
                 });
 
@@ -133,8 +202,9 @@
                     resultsDiv.innerHTML = `<p class="error">Error: ${data.error || response.statusText}</p>`;
                     copyButton.style.display = 'none'; // Ensure hidden on error
                 } else {
-                    // Display analysis result
-                    resultsDiv.textContent = data.analysis; // Use textContent to avoid potential HTML injection
+                    // Parse Markdown to HTML using marked.js and sanitize
+                    const htmlOutput = marked.parse(data.analysis || '', { sanitize: true }); 
+                    resultsDiv.innerHTML = htmlOutput;
                     copyButton.style.display = 'inline-block'; // Show copy button
                 }
             } catch (error) {
