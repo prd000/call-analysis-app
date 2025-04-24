@@ -198,6 +198,8 @@ def analyze():
 
 # --- Main Execution ---
 if __name__ == '__main__':
-    # Use host='0.0.0.0' to make it accessible on your network
-    # Use debug=True for development (auto-reloads), but turn off for production
-    app.run(host='0.0.0.0', port=5001, debug=True) # Using port 5001 as 5000 might be common 
+    # Use host='0.0.0.0' to make it accessible
+    # Get port from environment variable (Render provides this) or default to 5001 for local dev
+    port = int(os.environ.get("PORT", 5001))
+    # When running with gunicorn, it handles workers/threading, debug should be False
+    app.run(host='0.0.0.0', port=port, debug=False) 

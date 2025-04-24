@@ -2,4 +2,5 @@ flask
 python-dotenv
 pyairtable
 google-generativeai
-pandas 
+pandas
+gunicorn 
