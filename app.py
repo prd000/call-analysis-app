@@ -166,15 +166,16 @@ def analyze():
         
         prompt_for_gemini = f"""
         Analyze the following sales call transcripts and their associated outcomes. 
-        User Request: {user_request}
         
         Based on the data provided below, identify specific phrases, keywords, topics, 
         or conversational patterns (from either the prospect or the sales rep) that 
         appear to correlate with different outcomes (e.g., Closed Won, Closed Lost). 
         
         Focus on finding actionable insights, like 'If X is said, Y outcome is more likely'.
-        Be specific in your findings.
+        Be specific and concise in your findings. No fluff, just insights.
 
+        User Request: {user_request}
+        
         Data:
         {sample_data_text}
         """
